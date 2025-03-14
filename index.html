@@ -14,84 +14,154 @@
 </head>
 <body>
     <script>
-        // Crear la escena, cámara y renderizador
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+        // Variables globales
+        let scene, camera, renderer;
+        let arToolkitSource, arToolkitContext, markerRoot;
 
-// Crear el cuadrado blanco de fondo
-const fondoGeometria = new THREE.PlaneGeometry(3, 3);
-const fondoMaterial = new THREE.MeshBasicMaterial({ 
-    color: 0xffffff, 
-    side: THREE.DoubleSide 
-});
-const fondo = new THREE.Mesh(fondoGeometria, fondoMaterial);
-scene.add(fondo);
-
-// Crear la líneas de la cuadrícula
-const crearLinea = (x1, y1, x2, y2) => {
-    const puntos = [];
-    puntos.push(new THREE.Vector3(x1, y1, 0.01));
-    puntos.push(new THREE.Vector3(x2, y2, 0.01));
-    
-    const geometria = new THREE.BufferGeometry().setFromPoints(puntos);
-    const material = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
-    
-    return new THREE.Line(geometria, material);
-};
-
-// Líneas horizontales
-const linea1 = crearLinea(-1.5, -0.5, 1.5, -0.5);
-const linea2 = crearLinea(-1.5, 0.5, 1.5, 0.5);
-
-// Líneas verticales
-const linea3 = crearLinea(-0.5, -1.5, -0.5, 1.5);
-const linea4 = crearLinea(0.5, -1.5, 0.5, 1.5);
-
-scene.add(linea1);
-scene.add(linea2);
-scene.add(linea3);
-scene.add(linea4);
-
-// Opcional: Crear las celdas individuales con un borde para mejor visualización
-const crearCelda = (x, y) => {
-    const geometria = new THREE.PlaneGeometry(0.95, 0.95);
-    const material = new THREE.MeshBasicMaterial({ 
-        color: 0xf0f0f0, 
-        side: THREE.DoubleSide,
-        wireframe: true,
-        wireframeLinewidth: 1
-    });
-    const celda = new THREE.Mesh(geometria, material);
-    celda.position.set(x, y, 0.02);
-    return celda;
-};
-
-// Crear todas las celdas de la cuadrícula 3x3
-for (let i = -1; i <= 1; i++) {
-    for (let j = -1; j <= 1; j++) {
-        scene.add(crearCelda(i, j));
-    }
-}
-
-// Posicionar la cámara
-camera.position.z = 5;
-
-// Función de animación
-function animate() {
-    requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-}
-animate();
-
-// Ajustar el tamaño del renderizador cuando se redimensiona la ventana
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
+        // Inicializar
+        function initialize() {
+            // Crear escena, cámara y renderer
+            scene = new THREE.Scene();
+            camera = new THREE.Camera();
+            scene.add(camera);
+            
+            renderer = new THREE.WebGLRenderer({
+                antialias: true,
+                alpha: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.domElement.style.position = 'absolute';
+            renderer.domElement.style.top = '0px';
+            renderer.domElement.style.left = '0px';
+            document.body.appendChild(renderer.domElement);
+            
+            // Configurar AR.js
+            arToolkitSource = new THREEx.ArToolkitSource({
+                sourceType: 'webcam',
+            });
+            
+            arToolkitSource.init(function onReady() {
+                onResize();
+            });
+            
+            window.addEventListener('resize', onResize);
+            
+            // Crear contexto AR
+            arToolkitContext = new THREEx.ArToolkitContext({
+                cameraParametersUrl: 'https://raw.githack.com/AR-js-org/AR.js/master/data/data/camera_para.dat',
+                detectionMode: 'mono',
+                maxDetectionRate: 30,
+                canvasWidth: 80*3,
+                canvasHeight: 60*3,
+            });
+            
+            arToolkitContext.init(function onCompleted() {
+                camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+            });
+            
+            // Crear marcador
+            markerRoot = new THREE.Group();
+            scene.add(markerRoot);
+            
+            let markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+                type: 'pattern',
+                patternUrl: 'https://raw.githack.com/AR-js-org/AR.js/master/data/data/patt.hiro',
+            });
+            
+            // Crear la cuadrícula 3x3
+            crearCuadriculaTresXTres();
+            
+            // Animar
+            animate();
+        }
+        
+        // Crear la cuadrícula 3x3
+        function crearCuadriculaTresXTres() {
+            // Fondo blanco
+            const fondoGeometria = new THREE.PlaneGeometry(2, 2);
+            const fondoMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xffffff, 
+                side: THREE.DoubleSide 
+            });
+            const fondo = new THREE.Mesh(fondoGeometria, fondoMaterial);
+            fondo.rotation.x = -Math.PI/2; // Rotando para que sea horizontal
+            markerRoot.add(fondo);
+            
+            // Líneas de la cuadrícula
+            crearLineas();
+            
+            // Celdas de la cuadrícula (opcional)
+            crearCeldas();
+        }
+        
+        // Crear las líneas de la cuadrícula
+        function crearLineas() {
+            const lineasMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
+            
+            // Líneas horizontales
+            for (let i = -2/3; i <= 2/3; i += 2/3) {
+                const geometria = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(-1, 0, i),
+                    new THREE.Vector3(1, 0, i)
+                ]);
+                const linea = new THREE.Line(geometria, lineasMaterial);
+                markerRoot.add(linea);
+            }
+            
+            // Líneas verticales
+            for (let i = -2/3; i <= 2/3; i += 2/3) {
+                const geometria = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(i, 0, -1),
+                    new THREE.Vector3(i, 0, 1)
+                ]);
+                const linea = new THREE.Line(geometria, lineasMaterial);
+                markerRoot.add(linea);
+            }
+        }
+        
+        // Crear las celdas individuales (opcional)
+        function crearCeldas() {
+            const tamanoCelda = 0.6;
+            const celdaMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xf0f0f0, 
+                transparent: true,
+                opacity: 0.5,
+                wireframe: true
+            });
+            
+            for (let x = -2/3; x <= 2/3; x += 2/3) {
+                for (let z = -2/3; z <= 2/3; z += 2/3) {
+                    const celdaGeometria = new THREE.PlaneGeometry(tamanoCelda, tamanoCelda);
+                    const celda = new THREE.Mesh(celdaGeometria, celdaMaterial);
+                    celda.rotation.x = -Math.PI/2; // Rotando para que sea horizontal
+                    celda.position.set(x, 0.01, z); // Ligeramente arriba del plano principal
+                    markerRoot.add(celda);
+                }
+            }
+        }
+        
+        // Función para redimensionar
+        function onResize() {
+            arToolkitSource.onResizeElement();
+            arToolkitSource.copyElementSizeTo(renderer.domElement);
+            if (arToolkitContext.arController !== null) {
+                arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
+            }
+        }
+        
+        // Función de animación
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (arToolkitSource.ready !== false) {
+                arToolkitContext.update(arToolkitSource.domElement);
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        // Iniciar todo
+        window.onload = initialize;
     </script>
 </body>
 </html>
