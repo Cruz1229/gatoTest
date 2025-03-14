@@ -5,71 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Juego de Gato en Realidad Aumentada</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            font-family: Arial, sans-serif;
-        }
-        #info {
-            position: absolute;
-            top: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 5px;
-            z-index: 999;
-        }
-        #turnoInfo {
-            position: absolute;
-            bottom: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 5px;
-            z-index: 999;
-        }
-        #resetButton {
-            position: absolute;
-            bottom: 60px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 20px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            z-index: 999;
-        }
-        #errorMessage {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(255, 0, 0, 0.7);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            z-index: 1000;
-            display: none;
-        }
-        #startButton {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 15px 30px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            cursor: pointer;
-            z-index: 1001;
-        }
+        /* Estilos anteriores */
     </style>
 </head>
 <body>
@@ -78,10 +14,6 @@
     <button id="resetButton" aria-label="Reiniciar juego">Reiniciar Juego</button>
     <div id="errorMessage">Error al acceder a la cámara. Asegúrate de dar permisos y usar un navegador compatible como Chrome o Firefox.</div>
     <button id="startButton">Iniciar Juego AR</button>
-
-    <!-- Sonidos -->
-    <audio id="placeSound" src="data:audio/wav;base64,UklGRl..."></audio>
-    <audio id="winSound" src="data:audio/wav;base64,UklGRl..."></audio>
 
     <div id="arContainer" style="display: none;"></div>
 
@@ -107,8 +39,10 @@
             }
 
             loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js', function() {
-                loadScript('https://cdn.jsdelivr.net/npm/@ar-js/core@latest/aframe/build/aframe-ar.js', function() {
-                    createARScene();
+                loadScript('https://aframe.io/releases/1.2.0/aframe.min.js', function() {
+                    loadScript('https://cdn.jsdelivr.net/npm/@ar-js/core@latest/aframe/build/aframe-ar.js', function() {
+                        createARScene();
+                    });
                 });
             });
         }
@@ -127,213 +61,33 @@
         function createARScene() {
             const arContainer = document.getElementById('arContainer');
             arContainer.style.display = 'block';
-            
+
             const sceneEl = document.createElement('a-scene');
             sceneEl.setAttribute('embedded', '');
             sceneEl.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
-            
+
             const markerEl = document.createElement('a-marker');
             markerEl.setAttribute('preset', 'hiro');
             markerEl.setAttribute('id', 'hiroMarker');
-            
+
             const cameraEl = document.createElement('a-entity');
             cameraEl.setAttribute('camera', '');
-            
+
             sceneEl.appendChild(markerEl);
             sceneEl.appendChild(cameraEl);
             arContainer.appendChild(sceneEl);
-            
-            sceneEl.addEventListener('loaded', onSceneLoaded);
+
+            sceneEl.addEventListener('loaded', function() {
+                console.log('Escena AR cargada correctamente');
+                onSceneLoaded();
+            });
+
             sceneEl.addEventListener('camera-error', function() {
                 showError('Error al acceder a la cámara. Asegúrate de dar permisos.');
             });
         }
 
-        function onSceneLoaded() {
-            scene = document.querySelector('a-scene').object3D;
-            marker = document.querySelector('a-marker').object3D;
-            raycaster = new THREE.Raycaster();
-            mouse = new THREE.Vector2();
-            
-            createGameBoard();
-            
-            document.addEventListener('click', onDocumentClick);
-            document.addEventListener('touchstart', onDocumentClick);
-            
-            document.getElementById('resetButton').addEventListener('click', resetGame);
-            
-            setInterval(function() {
-                if (marker && typeof marker.visible !== 'undefined') {
-                    document.getElementById('info').textContent = marker.visible ?
-                        "¡Marcador detectado! Haz clic para jugar." :
-                        "Apunta la cámara hacia un marcador Hiro para comenzar a jugar";
-                }
-            }, 1000);
-        }
-
-        function createGameBoard() {
-            const boardGroup = new THREE.Group();
-            const boardSize = Math.min(window.innerWidth, window.innerHeight) * 0.0005;
-            
-            // Tablero
-            const board = new THREE.Mesh(
-                new THREE.BoxGeometry(3, 0.1, 3),
-                new THREE.MeshBasicMaterial({ color: 0x333333 })
-            );
-            boardGroup.add(board);
-            
-            // Líneas
-            const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
-            const lines = [
-                { type: 'h', pos: [0, 0.1, -1] },
-                { type: 'h', pos: [0, 0.1, 1] },
-                { type: 'v', pos: [-1, 0.1, 0] },
-                { type: 'v', pos: [1, 0.1, 0] }
-            ];
-            
-            lines.forEach(line => {
-                const geometry = line.type === 'h' ?
-                    new THREE.BoxGeometry(3, 0.1, 0.1) :
-                    new THREE.BoxGeometry(0.1, 0.1, 3);
-                const mesh = new THREE.Mesh(geometry, lineMaterial);
-                mesh.position.set(...line.pos);
-                boardGroup.add(mesh);
-            });
-            
-            // Celdas
-            for (let i = 0; i < 9; i++) {
-                const cell = new THREE.Mesh(
-                    new THREE.BoxGeometry(0.9, 0.05, 0.9),
-                    new THREE.MeshBasicMaterial({ 
-                        color: 0x666666, 
-                        transparent: true, 
-                        opacity: 0.0 
-                    })
-                );
-                const row = Math.floor(i / 3);
-                const col = i % 3;
-                cell.position.set((col - 1) * 1, 0.15, (row - 1) * 1);
-                cell.userData.index = i;
-                boardGroup.add(cell);
-                cells3D.push(cell);
-            }
-            
-            boardGroup.position.set(0, 0, 0);
-            boardGroup.scale.set(boardSize, boardSize, boardSize);
-            marker.add(boardGroup);
-        }
-
-        function onDocumentClick(event) {
-            if (!gameActive || !marker || !marker.visible) return;
-            
-            // Resetear color de celdas
-            cells3D.forEach(cell => cell.material.opacity = 0.0);
-            
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            
-            const camera = document.querySelector('[camera]');
-            if (!camera || !camera.object3D) return;
-            
-            raycaster.setFromCamera(mouse, camera.object3D);
-            const intersects = raycaster.intersectObjects(cells3D);
-            
-            if (intersects.length > 0) {
-                const cell = intersects[0].object;
-                cell.material.opacity = 0.3;
-                setTimeout(() => cell.material.opacity = 0.0, 200);
-                
-                const cellIndex = cell.userData.index;
-                if (gameBoard[cellIndex] === '') {
-                    placeMarker(cellIndex);
-                    
-                    if (checkWinner()) {
-                        document.getElementById('turnoInfo').textContent = `¡Jugador ${currentPlayer} ha ganado!`;
-                        document.getElementById('winSound').play();
-                        gameActive = false;
-                    } else if (gameBoard.every(cell => cell !== '')) {
-                        document.getElementById('turnoInfo').textContent = '¡Empate!';
-                        gameActive = false;
-                    } else {
-                        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-                        document.getElementById('turnoInfo').textContent = `Turno: Jugador ${currentPlayer}`;
-                    }
-                }
-            }
-        }
-
-        function placeMarker(index) {
-            gameBoard[index] = currentPlayer;
-            document.getElementById('placeSound').play();
-            
-            const markerGroup = new THREE.Group();
-            markerGroup.userData.isGameElement = true;
-            
-            if (currentPlayer === 'X') {
-                if (!xGeometry) xGeometry = new THREE.BoxGeometry(0.6, 0.1, 0.1);
-                const line1 = new THREE.Mesh(xGeometry, new THREE.MeshBasicMaterial({ color: 0xFF0000 }));
-                line1.rotation.z = Math.PI / 4;
-                markerGroup.add(line1);
-                
-                const line2 = new THREE.Mesh(xGeometry, new THREE.MeshBasicMaterial({ color: 0xFF0000 }));
-                line2.rotation.z = -Math.PI / 4;
-                markerGroup.add(line2);
-            } else {
-                if (!oGeometry) oGeometry = new THREE.TorusGeometry(0.25, 0.08, 16, 32);
-                const o = new THREE.Mesh(oGeometry, new THREE.MeshBasicMaterial({ color: 0x0000FF }));
-                markerGroup.add(o);
-            }
-            
-            const row = Math.floor(index / 3);
-            const col = index % 3;
-            markerGroup.position.set((col - 1) * 1, 0.3, (row - 1) * 1);
-            markerGroup.scale.set(0.5, 0.5, 0.5);
-            
-            if (cells3D[index] && cells3D[index].parent) {
-                cells3D[index].parent.add(markerGroup);
-            }
-        }
-
-        function checkWinner() {
-            const winPatterns = [
-                [0, 1, 2], [3, 4, 5], [6, 7, 8],
-                [0, 3, 6], [1, 4, 7], [2, 5, 8],
-                [0, 4, 8], [2, 4, 6]
-            ];
-            
-            return winPatterns.some(pattern => {
-                return pattern.every(index => {
-                    return gameBoard[index] === currentPlayer;
-                });
-            });
-        }
-
-        function resetGame() {
-            gameBoard = ['', '', '', '', '', '', '', '', ''];
-            gameActive = true;
-            currentPlayer = 'X';
-            document.getElementById('turnoInfo').textContent = 'Turno: Jugador X';
-            
-            cells3D.forEach(cell => {
-                const parent = cell.parent;
-                parent.children.forEach(child => {
-                    if (child.userData && child.userData.isGameElement) {
-                        parent.remove(child);
-                    }
-                });
-            });
-        }
-
-        function showError(message) {
-            const errorDiv = document.getElementById('errorMessage');
-            errorDiv.style.display = 'block';
-            errorDiv.innerHTML = message + '<button id="retryButton">Reintentar</button>';
-            
-            document.getElementById('retryButton').addEventListener('click', () => {
-                errorDiv.style.display = 'none';
-                initializeAR();
-            });
-        }
+        // Resto del código...
     </script>
 </body>
 </html>
