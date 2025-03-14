@@ -45,28 +45,19 @@
         </a-assets>
         
         <a-marker preset="hiro">
-            <!-- Tablero de juego -->
-            <a-plane position="0 0 0" rotation="-90 0 0" width="3" height="3" color="#FFFFFF" material="src: #grid; transparent: true"></a-plane>
+            <!-- Tablero 3D -->
+            <a-plane position="0 0 0" 
+                     rotation="-90 0 0" 
+                     width="3" 
+                     height="3" 
+                     color="#FFF" 
+                     material="src: #grid; transparent: true; opacity: 0.8">
+            </a-plane>
             
-            <!-- Espacios para las X y O -->
-            <!-- Fila superior -->
-            <a-entity id="cell-0-0" class="cell" position="-1 0 -1" game-piece=""></a-entity>
-            <a-entity id="cell-0-1" class="cell" position="0 0 -1" game-piece=""></a-entity>
-            <a-entity id="cell-0-2" class="cell" position="1 0 -1" game-piece=""></a-entity>
-            
-            <!-- Fila media -->
-            <a-entity id="cell-1-0" class="cell" position="-1 0 0" game-piece=""></a-entity>
-            <a-entity id="cell-1-1" class="cell" position="0 0 0" game-piece=""></a-entity>
-            <a-entity id="cell-1-2" class="cell" position="1 0 0" game-piece=""></a-entity>
-            
-            <!-- Fila inferior -->
-            <a-entity id="cell-2-0" class="cell" position="-1 0 1" game-piece=""></a-entity>
-            <a-entity id="cell-2-1" class="cell" position="0 0 1" game-piece=""></a-entity>
-            <a-entity id="cell-2-2" class="cell" position="1 0 1" game-piece=""></a-entity>
-            
-            <!-- Texto de estado -->
-            <a-entity id="statusText" position="0 0.5 -2" text="value: Tic Tac Toe AR; color: red; align: center; width: 5;" rotation="-90 0 0"></a-entity>
-        </a-marker>
+            <!-- Iluminación para mejor visibilidad -->
+            <a-light type="ambient" color="#445"></a-light>
+            <a-light type="point" intensity="2" position="0 2 0"></a-light>
+          </a-marker>
         
         <a-entity camera></a-entity>
     </a-scene>
