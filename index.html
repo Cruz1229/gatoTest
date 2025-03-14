@@ -5,17 +5,83 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Juego de Gato en Realidad Aumentada</title>
     <style>
-        /* Estilos anteriores */
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            z-index: 999;
+        }
+        #turnoInfo {
+            position: absolute;
+            bottom: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px;
+            z-index: 999;
+        }
+        #resetButton {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 999;
+        }
+        #errorMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(255, 0, 0, 0.7);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            z-index: 1000;
+            display: none;
+        }
+        #startButton {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            padding: 15px 30px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            z-index: 1001;
+        }
     </style>
 </head>
 <body>
-    <div id="info">Apunta la cámara hacia un <a href="https://arjs-craftified.glitch.me/hiro-marker.png" target="_blank" style="color: #4CAF50; text-decoration: none;">marcador Hiro</a> para comenzar</div>
-    <div id="turnoInfo" role="status" aria-live="polite">Turno: Jugador X</div>
-    <button id="resetButton" aria-label="Reiniciar juego">Reiniciar Juego</button>
+    <div id="info">Apunta la cámara hacia un marcador Hiro para comenzar a jugar</div>
+    <div id="turnoInfo">Turno: Jugador X</div>
+    <button id="resetButton">Reiniciar Juego</button>
     <div id="errorMessage">Error al acceder a la cámara. Asegúrate de dar permisos y usar un navegador compatible como Chrome o Firefox.</div>
     <button id="startButton">Iniciar Juego AR</button>
 
-    <div id="arContainer" style="display: none;"></div>
+    <div id="arContainer" style="display: none;">
+        <!-- A-Frame y AR.js se cargarán dinámicamente después de presionar el botón de inicio -->
+    </div>
 
     <script>
         // Variables globales
@@ -24,25 +90,19 @@
         let gameActive = true;
         let scene, marker, raycaster, mouse;
         const cells3D = [];
-        let xGeometry, oGeometry;
 
-        // Función para iniciar el juego
+        // Función para iniciar el juego cuando el usuario presiona el botón
         document.getElementById('startButton').addEventListener('click', function() {
             this.style.display = 'none';
             initializeAR();
         });
 
         function initializeAR() {
-            if (location.protocol !== 'https:') {
-                showError('Esta aplicación requiere HTTPS. Por favor usa un servidor seguro.');
-                return;
-            }
-
+            // Cargar los scripts necesarios dinámicamente
             loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js', function() {
-                loadScript('https://aframe.io/releases/1.2.0/aframe.min.js', function() {
-                    loadScript('https://cdn.jsdelivr.net/npm/@ar-js/core@latest/aframe/build/aframe-ar.js', function() {
-                        createARScene();
-                    });
+                loadScript('https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js', function() {
+                    // Una vez que los scripts estén cargados, inicializar la escena AR
+                    createARScene();
                 });
             });
         }
@@ -53,7 +113,8 @@
             script.src = url;
             script.onload = callback;
             script.onerror = function() {
-                showError('Error al cargar recursos. Verifica tu conexión a internet.');
+                document.getElementById('errorMessage').style.display = 'block';
+                document.getElementById('errorMessage').textContent = 'Error al cargar recursos. Verifica tu conexión a internet.';
             };
             document.head.appendChild(script);
         }
@@ -61,33 +122,260 @@
         function createARScene() {
             const arContainer = document.getElementById('arContainer');
             arContainer.style.display = 'block';
-
+            
+            // Crear la escena AR
             const sceneEl = document.createElement('a-scene');
             sceneEl.setAttribute('embedded', '');
             sceneEl.setAttribute('arjs', 'sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
-
+            
+            // Crear el marcador
             const markerEl = document.createElement('a-marker');
             markerEl.setAttribute('preset', 'hiro');
             markerEl.setAttribute('id', 'hiroMarker');
-
+            
+            // Crear la cámara
             const cameraEl = document.createElement('a-entity');
             cameraEl.setAttribute('camera', '');
-
+            
+            // Añadir elementos a la escena
             sceneEl.appendChild(markerEl);
             sceneEl.appendChild(cameraEl);
             arContainer.appendChild(sceneEl);
-
-            sceneEl.addEventListener('loaded', function() {
-                console.log('Escena AR cargada correctamente');
-                onSceneLoaded();
-            });
-
+            
+            // Manejar eventos de carga
+            sceneEl.addEventListener('loaded', onSceneLoaded);
             sceneEl.addEventListener('camera-error', function() {
-                showError('Error al acceder a la cámara. Asegúrate de dar permisos.');
+                document.getElementById('errorMessage').style.display = 'block';
             });
         }
 
-        // Resto del código...
+        function onSceneLoaded() {
+            console.log('Escena AR cargada correctamente');
+            
+            // Obtener la escena Three.js de A-Frame
+            scene = document.querySelector('a-scene').object3D;
+            
+            // Obtener el marcador
+            marker = document.querySelector('a-marker').object3D;
+            
+            // Inicializar raycaster para detectar interacciones
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Crear el tablero de juego
+            createGameBoard();
+            
+            // Agregar event listener para los clics
+            document.addEventListener('click', onDocumentClick);
+            
+            // Botón de reinicio
+            document.getElementById('resetButton').addEventListener('click', resetGame);
+            
+            // Comprobar si el marcador es visible cada segundo
+            setInterval(function() {
+                if (marker && typeof marker.visible !== 'undefined') {
+                    if (marker.visible) {
+                        document.getElementById('info').textContent = "¡Marcador detectado! Haz clic para jugar.";
+                    } else {
+                        document.getElementById('info').textContent = "Apunta la cámara hacia un marcador Hiro para comenzar a jugar";
+                    }
+                }
+            }, 1000);
+        }
+
+        // Crear el tablero de juego
+        function createGameBoard() {
+            // Crear un grupo para contener el tablero
+            const boardGroup = new THREE.Group();
+            
+            // Crear el fondo del tablero
+            const boardGeometry = new THREE.BoxGeometry(3, 0.1, 3);
+            const boardMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+            const board = new THREE.Mesh(boardGeometry, boardMaterial);
+            boardGroup.add(board);
+            
+            // Crear las líneas del tablero
+            const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
+            
+            // Líneas horizontales
+            const hLine1Geometry = new THREE.BoxGeometry(3, 0.1, 0.1);
+            const hLine1 = new THREE.Mesh(hLine1Geometry, lineMaterial);
+            hLine1.position.set(0, 0.1, -1);
+            boardGroup.add(hLine1);
+            
+            const hLine2Geometry = new THREE.BoxGeometry(3, 0.1, 0.1);
+            const hLine2 = new THREE.Mesh(hLine2Geometry, lineMaterial);
+            hLine2.position.set(0, 0.1, 1);
+            boardGroup.add(hLine2);
+            
+            // Líneas verticales
+            const vLine1Geometry = new THREE.BoxGeometry(0.1, 0.1, 3);
+            const vLine1 = new THREE.Mesh(vLine1Geometry, lineMaterial);
+            vLine1.position.set(-1, 0.1, 0);
+            boardGroup.add(vLine1);
+            
+            const vLine2Geometry = new THREE.BoxGeometry(0.1, 0.1, 3);
+            const vLine2 = new THREE.Mesh(vLine2Geometry, lineMaterial);
+            vLine2.position.set(1, 0.1, 0);
+            boardGroup.add(vLine2);
+            
+            // Crear áreas clickeables para cada celda
+            for (let i = 0; i < 9; i++) {
+                const cellGeometry = new THREE.BoxGeometry(0.9, 0.05, 0.9);
+                const cellMaterial = new THREE.MeshBasicMaterial({ 
+                    color: 0x666666, 
+                    transparent: true, 
+                    opacity: 0.0 
+                });
+                const cell = new THREE.Mesh(cellGeometry, cellMaterial);
+                
+                // Calcular posición
+                const row = Math.floor(i / 3);
+                const col = i % 3;
+                cell.position.set((col - 1) * 1, 0.15, (row - 1) * 1);
+                
+                // Almacenar el índice de la celda para identificación
+                cell.userData.index = i;
+                
+                boardGroup.add(cell);
+                cells3D.push(cell);
+            }
+            
+            // Ajustar el tablero para que se vea bien en el marcador
+            boardGroup.position.set(0, 0, 0);
+            boardGroup.scale.set(0.5, 0.5, 0.5);
+            
+            // Agregar el tablero al marcador
+            marker.add(boardGroup);
+        }
+
+        // Manejar los clics en el tablero
+        function onDocumentClick(event) {
+            if (!gameActive || !marker || !marker.visible) return;
+            
+            // Calcular las coordenadas del mouse normalizado
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+            
+            // Comprobar si el raycaster está definido
+            if (!raycaster) return;
+            
+            // Actualizar el raycaster
+            const camera = document.querySelector('[camera]');
+            if (!camera || !camera.object3D) return;
+            
+            raycaster.setFromCamera(mouse, camera.object3D);
+            
+            // Verificar si el rayo intersecta con alguna celda
+            const intersects = raycaster.intersectObjects(cells3D);
+            
+            if (intersects.length > 0) {
+                const cellIndex = intersects[0].object.userData.index;
+                
+                // Verificar si la celda está vacía
+                if (gameBoard[cellIndex] === '') {
+                    // Marcar la celda
+                    placeMarker(cellIndex);
+                    
+                    // Verificar si hay un ganador
+                    if (checkWinner()) {
+                        document.getElementById('turnoInfo').textContent = `¡Jugador ${currentPlayer} ha ganado!`;
+                        gameActive = false;
+                    } else if (gameBoard.every(cell => cell !== '')) {
+                        // Empate
+                        document.getElementById('turnoInfo').textContent = '¡Empate!';
+                        gameActive = false;
+                    } else {
+                        // Cambiar de jugador
+                        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                        document.getElementById('turnoInfo').textContent = `Turno: Jugador ${currentPlayer}`;
+                    }
+                }
+            }
+        }
+
+        // Colocar una X o O en la celda
+        function placeMarker(index) {
+            // Actualizar el estado del tablero
+            gameBoard[index] = currentPlayer;
+            
+            // Crear el marcador 3D (X u O)
+            const markerGroup = new THREE.Group();
+            
+            if (currentPlayer === 'X') {
+                // Crear una X
+                const xMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+                
+                const line1Geometry = new THREE.BoxGeometry(0.6, 0.1, 0.1);
+                const line1 = new THREE.Mesh(line1Geometry, xMaterial);
+                line1.rotation.z = Math.PI / 4;
+                markerGroup.add(line1);
+                
+                const line2Geometry = new THREE.BoxGeometry(0.6, 0.1, 0.1);
+                const line2 = new THREE.Mesh(line2Geometry, xMaterial);
+                line2.rotation.z = -Math.PI / 4;
+                markerGroup.add(line2);
+            } else {
+                // Crear una O
+                const oGeometry = new THREE.TorusGeometry(0.25, 0.08, 16, 32);
+                const oMaterial = new THREE.MeshBasicMaterial({ color: 0x0000FF });
+                const o = new THREE.Mesh(oGeometry, oMaterial);
+                markerGroup.add(o);
+            }
+            
+            // Calcular posición
+            const row = Math.floor(index / 3);
+            const col = index % 3;
+            markerGroup.position.set((col - 1) * 1, 0.3, (row - 1) * 1);
+            
+            // Ajustar escala y posición
+            markerGroup.scale.set(0.5, 0.5, 0.5);
+            
+            // Agregar el marcador al tablero
+            if (cells3D[index] && cells3D[index].parent) {
+                cells3D[index].parent.add(markerGroup);
+            }
+        }
+
+        // Verificar si hay un ganador
+        function checkWinner() {
+            const winPatterns = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Filas
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columnas
+                [0, 4, 8], [2, 4, 6]             // Diagonales
+            ];
+            
+            return winPatterns.some(pattern => {
+                return pattern.every(index => {
+                    return gameBoard[index] === currentPlayer;
+                });
+            });
+        }
+
+        // Reiniciar el juego
+        function resetGame() {
+            // Limpiar el tablero
+            gameBoard = ['', '', '', '', '', '', '', '', ''];
+            gameActive = true;
+            currentPlayer = 'X';
+            
+            // Actualizar el mensaje de turno
+            document.getElementById('turnoInfo').textContent = 'Turno: Jugador X';
+            
+            // Eliminar los marcadores 3D
+            cells3D.forEach(cell => {
+                if (cell && cell.parent) {
+                    // Eliminar todos los hijos de la celda (las X y O)
+                    const parent = cell.parent;
+                    for (let i = parent.children.length - 1; i >= 0; i--) {
+                        const child = parent.children[i];
+                        if (child !== cell && child.type === 'Group') {
+                            parent.remove(child);
+                        }
+                    }
+                }
+            });
+        }
     </script>
 </body>
 </html>
