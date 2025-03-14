@@ -3,9 +3,8 @@
 <head>
     <meta charset="utf-8">
     <title>Cuadrícula 3x3 en Realidad Aumentada</title>
-    <!-- Cargar Three.js y AR.js desde CDNs confiables con versiones específicas -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.3/three.js/build/ar.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/three.js/build/ar.js"></script>
     <style>
         body {
             margin: 0;
@@ -14,9 +13,6 @@
     </style>
 </head>
 <body>
-    <!-- Importante: Agregar atributo webgl para mejor soporte -->
-    <div id="scene-container" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;"></div>
-    
     <script>
         // Variables globales
         let scene, camera, renderer;
@@ -29,138 +25,122 @@
             camera = new THREE.Camera();
             scene.add(camera);
             
-            // Configurar el renderizador
             renderer = new THREE.WebGLRenderer({
                 antialias: true,
-                alpha: true,
-                precision: 'highp' // Usar precisión alta para mejor calidad
+                alpha: true
             });
-            renderer.setClearColor(new THREE.Color('lightgray'), 0);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.domElement.style.position = 'absolute';
             renderer.domElement.style.top = '0px';
             renderer.domElement.style.left = '0px';
-            document.getElementById('scene-container').appendChild(renderer.domElement);
+            document.body.appendChild(renderer.domElement);
             
-            // Configurar AR.js para la cámara
+            // Configurar AR.js
             arToolkitSource = new THREEx.ArToolkitSource({
                 sourceType: 'webcam',
-                sourceWidth: window.innerWidth > window.innerHeight ? 640 : 480,
-                sourceHeight: window.innerWidth > window.innerHeight ? 480 : 640
             });
             
             arToolkitSource.init(function onReady() {
-                // Redimensionar cuando esté listo
-                setTimeout(function() {
-                    onResize();
-                }, 1000);
-            });
-            
-            // Manejador de eventos para redimensionar
-            window.addEventListener('resize', function() {
                 onResize();
             });
             
-            // Crear el contexto AR
-            // Usar marcador 'hiro' - es el más estándar y estable
+            window.addEventListener('resize', onResize);
+            
+            // Crear contexto AR
             arToolkitContext = new THREEx.ArToolkitContext({
-                cameraParametersUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.3/data/data/camera_para.dat',
+                cameraParametersUrl: 'https://raw.githack.com/AR-js-org/AR.js/master/data/data/camera_para.dat',
                 detectionMode: 'mono',
                 maxDetectionRate: 30,
-                canvasWidth: 1000,
-                canvasHeight: 1000
+                canvasWidth: 80*3,
+                canvasHeight: 60*3,
             });
             
             arToolkitContext.init(function onCompleted() {
                 camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
             });
             
-            // Crear marcador root
+            // Crear marcador
             markerRoot = new THREE.Group();
             scene.add(markerRoot);
             
-            // Configurar el marcador - usar 'hiro' que es estable
             let markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
                 type: 'pattern',
-                patternUrl: 'https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.3.3/data/data/patt.hiro'
+                patternUrl: 'https://raw.githack.com/AR-js-org/AR.js/master/data/data/patt.hiro',
             });
             
             // Crear la cuadrícula 3x3
             crearCuadriculaTresXTres();
             
-            // Iniciar animación
+            // Animar
             animate();
         }
         
+        // Crear la cuadrícula 3x3
         function crearCuadriculaTresXTres() {
-            // Grupo para contener todos los elementos
-            const cuadricula = new THREE.Group();
-            
-            // Fondo blanco (plano) con un borde negro
-            const backGeometry = new THREE.PlaneGeometry(1.5, 1.5);
-            const backMaterial = new THREE.MeshBasicMaterial({ 
+            // Fondo blanco
+            const fondoGeometria = new THREE.PlaneGeometry(2, 2);
+            const fondoMaterial = new THREE.MeshBasicMaterial({ 
                 color: 0xffffff, 
                 side: THREE.DoubleSide 
             });
-            const background = new THREE.Mesh(backGeometry, backMaterial);
-            background.rotation.x = -Math.PI/2; // Horizontal
-            cuadricula.add(background);
+            const fondo = new THREE.Mesh(fondoGeometria, fondoMaterial);
+            fondo.rotation.x = -Math.PI/2; // Rotando para que sea horizontal
+            markerRoot.add(fondo);
             
-            // Agregar borde al cuadrado
-            const borderGeometry = new THREE.EdgesGeometry(backGeometry);
-            const borderMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
-            const border = new THREE.LineSegments(borderGeometry, borderMaterial);
-            border.rotation.x = -Math.PI/2;
-            cuadricula.add(border);
+            // Líneas de la cuadrícula
+            crearLineas();
             
-            // Tamaño de cada celda
-            const cellSize = 0.5;
-            
-            // Crear líneas de la cuadrícula
-            const linesMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+            // Celdas de la cuadrícula (opcional)
+            crearCeldas();
+        }
+        
+        // Crear las líneas de la cuadrícula
+        function crearLineas() {
+            const lineasMaterial = new THREE.LineBasicMaterial({ color: 0x000000, linewidth: 2 });
             
             // Líneas horizontales
-            for (let i = 1; i <= 2; i++) {
-                const y = -0.75 + i * cellSize;
-                const geometry = new THREE.BufferGeometry().setFromPoints([
-                    new THREE.Vector3(-0.75, 0, y),
-                    new THREE.Vector3(0.75, 0, y)
+            for (let i = -2/3; i <= 2/3; i += 2/3) {
+                const geometria = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(-1, 0, i),
+                    new THREE.Vector3(1, 0, i)
                 ]);
-                const line = new THREE.Line(geometry, linesMaterial);
-                cuadricula.add(line);
+                const linea = new THREE.Line(geometria, lineasMaterial);
+                markerRoot.add(linea);
             }
             
             // Líneas verticales
-            for (let i = 1; i <= 2; i++) {
-                const x = -0.75 + i * cellSize;
-                const geometry = new THREE.BufferGeometry().setFromPoints([
-                    new THREE.Vector3(x, 0, -0.75),
-                    new THREE.Vector3(x, 0, 0.75)
+            for (let i = -2/3; i <= 2/3; i += 2/3) {
+                const geometria = new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(i, 0, -1),
+                    new THREE.Vector3(i, 0, 1)
                 ]);
-                const line = new THREE.Line(geometry, linesMaterial);
-                cuadricula.add(line);
+                const linea = new THREE.Line(geometria, lineasMaterial);
+                markerRoot.add(linea);
             }
-            
-            // Elevar ligeramente el grupo completo para evitar z-fighting
-            cuadricula.position.y = 0.01;
-            
-            // Agregar el grupo al marcador
-            markerRoot.add(cuadricula);
-            
-            // Agregar texto para saber si el marcador está siendo detectado
-            const loader = new THREE.FontLoader();
-            // Crear un texto provisional mientras se carga la fuente
-            const geometryText = new THREE.TextGeometry("3x3", {
-                size: 0.1,
-                height: 0.02
-            });
-            const materialText = new THREE.MeshBasicMaterial({ color: 0x000000 });
-            const textMesh = new THREE.Mesh(geometryText, materialText);
-            textMesh.position.set(0, 0.1, 0);
-            textMesh.rotation.x = -Math.PI/2;
-            cuadricula.add(textMesh);
         }
         
+        // Crear las celdas individuales (opcional)
+        function crearCeldas() {
+            const tamanoCelda = 0.6;
+            const celdaMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xf0f0f0, 
+                transparent: true,
+                opacity: 0.5,
+                wireframe: true
+            });
+            
+            for (let x = -2/3; x <= 2/3; x += 2/3) {
+                for (let z = -2/3; z <= 2/3; z += 2/3) {
+                    const celdaGeometria = new THREE.PlaneGeometry(tamanoCelda, tamanoCelda);
+                    const celda = new THREE.Mesh(celdaGeometria, celdaMaterial);
+                    celda.rotation.x = -Math.PI/2; // Rotando para que sea horizontal
+                    celda.position.set(x, 0.01, z); // Ligeramente arriba del plano principal
+                    markerRoot.add(celda);
+                }
+            }
+        }
+        
+        // Función para redimensionar
         function onResize() {
             arToolkitSource.onResizeElement();
             arToolkitSource.copyElementSizeTo(renderer.domElement);
@@ -169,6 +149,7 @@
             }
         }
         
+        // Función de animación
         function animate() {
             requestAnimationFrame(animate);
             
@@ -179,7 +160,7 @@
             renderer.render(scene, camera);
         }
         
-        // Iniciar la aplicación cuando se cargue la página
+        // Iniciar todo
         window.onload = initialize;
     </script>
 </body>
