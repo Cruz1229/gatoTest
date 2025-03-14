@@ -2,369 +2,222 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Juego de Gato en Realidad Aumentada</title>
+    <title>Tic Tac Toe en Realidad Aumentada</title>
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
+        .centered {
+            position: fixed;
+            top: 10px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 1;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 5px;
             font-family: Arial, sans-serif;
         }
-        #info {
-            position: absolute;
-            top: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 5px;
-            z-index: 999;
-        }
-        #turnoInfo {
-            position: absolute;
-            bottom: 10px;
-            width: 100%;
-            text-align: center;
-            color: white;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 5px;
-            z-index: 999;
-        }
+        
         #resetButton {
-            position: absolute;
-            bottom: 60px;
+            position: fixed;
+            bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
+            z-index: 1;
             padding: 10px 20px;
             background-color: #4CAF50;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            z-index: 999;
-        }
-        #errorMessage {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background-color: rgba(255, 0, 0, 0.7);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            z-index: 1000;
-            display: none;
-        }
-        #startButton {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            padding: 15px 30px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 18px;
-            cursor: pointer;
-            z-index: 1001;
+            font-size: 16px;
         }
     </style>
 </head>
-<body>
-    <div id="info">Apunta la cámara hacia un marcador Hiro para comenzar a jugar</div>
-    <div id="turnoInfo">Turno: Jugador X</div>
-    <button id="resetButton">Reiniciar Juego</button>
-    <div id="errorMessage">Error al acceder a la cámara. Asegúrate de dar permisos y usar un navegador compatible como Chrome o Firefox.</div>
-    <button id="startButton">Iniciar Juego AR</button>
-
-    <div id="arContainer" style="display: none;">
-        <!-- A-Frame y AR.js se cargarán dinámicamente después de presionar el botón de inicio -->
-    </div>
-
+<body style="margin: 0; overflow: hidden;">
+    <div class="centered" id="gameInfo">Jugador actual: X</div>
+    <button id="resetButton" onclick="resetGame()">Reiniciar Juego</button>
+    
+    <a-scene embedded arjs="trackingMethod: best;" vr-mode-ui="enabled: false">
+        <a-assets>
+            <img id="grid" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAIAAAB7GkOtAAAABGdBTUEAALGPC/xhBQAAACBjSFJNAAB6JgAAgIQAAPoAAACA6AAAdTAAAOpgAAA6mAAAF3CculE8AAAABmJLR0QA/wD/AP+gvaeTAAAXoUlEQVR42u3dW5LjOHYGUKBTEfMCs4/e/2Jm/M0Llrc0/QAJAlcH587P3VWWRZI4+AoUbff7/QYAM/3r9A8AgOMJAIDJBACTvb6+nv4RgEcTAMBkAgBgMgEAMJkAAJhMAABMJgAAJhMAU3llEGYTAACT/ef0D0DK6+vr/X4//VMAnEYBTGaKCdMJAIDJBMBwCgBAAQBMJgAAJhMAw7kEgOkEwFhvb2+nfwTgZAJgLJt/wE0AAEwnAMZSAAA3ATCZHQCYTgAATPZy+gfI8re//e3+53/+5197e3s7/VOx3XA7YHd3k/23v/3tn//857///e+XP//8SxFHnpSvr6+H/sIBuARA1OlPb/78+eefByT3u3m9cXpfHnDrRwDcTt8G3DQAzCcAiDp903t7e/v777///e9/n/45TjTzpLw9IgCg44P8IhMARJ2+6b29vf3P//7v//3f/53+OXjWnwLgzwD4UwX4vRXgZ1IAjCUAEnQA86gAYDprKmI2bUH2uC1SgMkUAFEKgPmMB9OZRCJKAUDcn2sDYTYFQJQCgLgHZYE/CjGZAiBKAQBwEwBEKQCAm7UUUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuAoAoBQBwEwBEKQCAm80TUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuAoAoBQBwEwBEKQCAm80TUQoA4CYAiFIAADcBQJQCALjZPBGlAABuAoCoNxXAfJZSRAkA4CYAiHp9fT39I3AaBcB8AoAoBQBwEwBEKQCAm80TUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuNk9EKQCAm7UUUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuAoAoBQBwEwBEKQCAm80TUQoA4GYtRZQCALgJAKIUAMBNABClAABuNk9EKQCAm7UUUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuNk9EKQCAm80TUQoA4GYtRZQCALgJAKIUAMBNABClAABuAoAoBQBwEwBEKQCAm80TUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuNk9EKQCAm7UUUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuNk9EKQCAm7UUUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuAoAoBQBwEwBEKQCAm80TUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuNo9EKQCAm7UUUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuNo9EKQCAm7UUUQoA4CYAiFIAADcBQJQCALgJAKIUAMBNABClAABuNo9EKQCAm7UUUQoA4CYAiFIAADcBQJQCALgJAKIUAMDN5pEoBQBwEwBEKQCAm80TUQoA4CYAiFIAADcBQJQCALgJAKIUAMDN5pEoBQBwEwBEKQCAm80TUQoA4CYAiFIAADebR6IUAMBNABClAABuNo9EKQCAm7UUUQoA4CYAiFIAADcBQJQCALjZPBKlAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADcBQJQCALgJAKIUAMDN5pEoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBws3kkSgEA3AQAUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuNo9EKQCAm/UiUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuNo9EKQCAm/UiUQoA4CYAiFIAADcBQJQCALjZPBKlAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADcBQJQCALgJAKIUAMDN5pEoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADcBQJQCALgJAKIUAMDN5pEoBQBwEwBEKQCAm80jUQoA4CYAiFIAADcBQJQCALgJAKIUAMDN5pEoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADcBQJQCALgJAKIUAMDN5pEoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBwEwBEKQCAm80jUQoA4CYAiFIAADebR6IUAMBNABClAABuAoAoBQBwEwBRjw2AX/7nX76/v7+8vLy8vHz/+P7+/vHxcbvd3t/fb7fb29vbx8fHx8fHr7/++vr6+vb29vb29vHx8fHx8fHx8evXr9fX1+9///r6+uvr619//fXrr7/++uuv19fX19fX19fXX79+vb+/v7+/f3x8/Prrr9fX17e3t19//fXr169ff/31/v7+/v7+/v7+69evr6+vr6+v7+/vHx8fHx8fv/7666+//np9ff3+8f39/f39/ePj46+//nr/+Pj4+Pj4+Pj4+Pj4+Pj4+Pj49ddff/31169fv378+PHjx4+Pj4+Pj4/v7+8fHx/fP97f3z8+Pt7f399+fHx8fHx8fHx8fHz8+PHjx48fHz9+/Pjx4/39/f39/ePj4/39/f39/e3t7e3t7fvHx8fH+/v729vb9/f39/f3j4+Pj4+P9/f3l9eX2+32/v7+8fHx8fHx/v7+qx9/9aPVjz/78fHx8fHx8fHx8evXr19//Xp/f//4+Pj4ePv+8f39/X//9//61/v7+8enX//61/ef/+Pj4/39/ePj4/39/ePj4+29o7c/vt7f3z8+Pj4+Pr6/v7+/v//48eP9/f37x48fP37//vv379+/f39/f//+/fv37+/f39+/f//+/fv79+/f39+/fv36/v37x8fHx8f7/3d8fHz8+PHjx48fP378+Pj48ffvf/f+/v7+/v79+/fv37+/f//+/fvXr1+/fv369evXr1+/fv369evXr1+/fv379+/fv3/9+vXr169ff4wfv379+vXr14+//vrr169fv379+vXr18e///3v37//+PHjx48fP378+PHjx48f/+3v37+++/Hjx48fP378+PHjx48fP378v1/v3799f//+7du3b9++ffv2/fu3b9++ffv2/fu3b9++ffv27du3b9+/f//+/du3b9+/f//+/fu3b9+/f//+/fu3b/99/++Pb9++ffv27du3b9++ffu/ffv27du3b/9n/Pj2fz+++/Xt27dv3759+/bt27dv3759+/b9+38b3759+/bt+/ePHx+/vn37/7/9R//+x+vPv/0x/l//7du3b9/+/9Sf3/2//t9//7dv375/+/bt27dv37599/80vn//9u3b98f33fft27dv3z9+fPfn9e37/3v/+9fHt//4/fu/fd//Y/y/jj/+37/+/f99/e+++/99+/79+/7t//r129c/3v72/f/1x+//dv/5tx9//P++/f/1/t//r2//Pn79+//XH7//+PHH7/8f3//+vz8K4Psfv3//vu/P3f/+/fvxz1+/f//+/fv38fXr169fv379+vXr/5MXv379+vXr168/Xv/x+uvXH6+/fv369evXr1+//n/+/n/9+vXr16+/f//7//Xr13///ddfv/7+/fv379+/f//+/fvXr1+/fv2v/cdfv3799+H369e//vd/fTz18z/z8z/x8/81P89dP8+FP89TP89fz3d/Xnt5tvvzWvHz9cuf14ifry+/v//z2vfz2vfzdffn383nX+XP38vnX+rz79pPnz//2n/+Vf/p13/+bpz9Xj3v3fvpe/j8vfx5b+Ln9Zzzz+s553+f/3lnzPlP+/yf9vk/7fPexJ/XiM9/I7//vs9/gz//xv/8N/7n3+zPf7M//43/49/un38nPv9O/Pw78fPvxM+/E3/+XvLlP+7/vE/+eb3x536Mn/sxfu7H+Lkf4+d+jJ/7/j7v4/u5j+/nPr6f+/h+7uP7uY/vj+sBP+85/rznOPF/+s/9vT/39/7c3/t/7u/+ub/75/7un/u7f+7v/vPehc97F57/hvz8N+TnvyE//xvyz38rfvpdx/1vnpP9+zXt36/xj9yPcfTn//nOl0fef/S0+48eeX/Vw+9veuT9Yc+5P+yR958d+u8M/f3+wkfeX3v0/cGPvD/7afenP/L++v0egf/IEZA/J0P7d1LssTc1/38yXOZGzKfehPrUm1CfehPq13//SztHHCHgjACw97/9jTjHHEbk9gfYkW9iHHQoFWf+H2Gn3rC85+2/bz++jn6Xgz1vwj77ZnCuvhH/yHsSDjp65ezbeU9w5qFWZx5tFtpZnPH/BHLk/SNH3w931LNoZ96X+dSbV//1L78f+Kwjrk5/9POq/47I3U3tF3UXRcnNrU90+vOqy27eLnZ/6p8c/eTnMvcrZ3fC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">
+        </a-assets>
+        
+        <a-marker preset="hiro">
+            <!-- Tablero de juego -->
+            <a-plane position="0 0 0" rotation="-90 0 0" width="3" height="3" color="#FFFFFF" material="src: #grid; transparent: true"></a-plane>
+            
+            <!-- Espacios para las X y O -->
+            <!-- Fila superior -->
+            <a-entity id="cell-0-0" class="cell" position="-1 0 -1" game-piece=""></a-entity>
+            <a-entity id="cell-0-1" class="cell" position="0 0 -1" game-piece=""></a-entity>
+            <a-entity id="cell-0-2" class="cell" position="1 0 -1" game-piece=""></a-entity>
+            
+            <!-- Fila media -->
+            <a-entity id="cell-1-0" class="cell" position="-1 0 0" game-piece=""></a-entity>
+            <a-entity id="cell-1-1" class="cell" position="0 0 0" game-piece=""></a-entity>
+            <a-entity id="cell-1-2" class="cell" position="1 0 0" game-piece=""></a-entity>
+            
+            <!-- Fila inferior -->
+            <a-entity id="cell-2-0" class="cell" position="-1 0 1" game-piece=""></a-entity>
+            <a-entity id="cell-2-1" class="cell" position="0 0 1" game-piece=""></a-entity>
+            <a-entity id="cell-2-2" class="cell" position="1 0 1" game-piece=""></a-entity>
+            
+            <!-- Texto de estado -->
+            <a-entity id="statusText" position="0 0.5 -2" text="value: Tic Tac Toe AR; color: red; align: center; width: 5;" rotation="-90 0 0"></a-entity>
+        </a-marker>
+        
+        <a-entity camera></a-entity>
+    </a-scene>
+    
     <script>
-        // Variables globales
-        let currentPlayer = 'X';
-        let gameBoard = ['', '', '', '', '', '', '', '', ''];
-        let gameActive = true;
-        let scene, marker, raycaster, mouse;
-        const cells3D = [];
-
-        // Función para iniciar el juego cuando el usuario presiona el botón
-        document.getElementById('startButton').addEventListener('click', function() {
-            this.style.display = 'none';
-            initializeAR();
+        AFRAME.registerComponent('game-piece', {
+            init: function() {
+                this.el.addEventListener('click', this.onClick.bind(this));
+                this.el.setAttribute('geometry', 'primitive: box; width: 0.8; height: 0.2; depth: 0.8');
+                this.el.setAttribute('material', 'color: white; opacity: 0.0');
+                this.el.setAttribute('class', 'clickable');
+            },
+            onClick: function() {
+                if (gameOver || this.el.getAttribute('data-value')) {
+                    return;
+                }
+                
+                const position = this.el.getAttribute('position');
+                const row = Math.floor(position.z + 1.5);
+                const col = Math.floor(position.x + 1.5);
+                
+                if (!gameBoard[row][col]) {
+                    placePiece(row, col, currentPlayer);
+                    checkWinner();
+                    togglePlayer();
+                }
+            }
         });
-
-        function loadScript(url, callback) {
-            const script = document.createElement('script');
-            script.type = 'text/javascript';
-            script.src = url;
-            script.onload = callback;
-            script.onerror = function() {
-                document.getElementById('errorMessage').style.display = 'block';
-                document.getElementById('errorMessage').textContent = 'Error al cargar recursos. Verifica tu conexión a internet.';
-            };
-            document.head.appendChild(script);
-        }
-
-        function initializeAR() {
-    loadScript('https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js', function() {
-        createARScene();
-    });
-}
-
-function createARScene() {
-    const arContainer = document.getElementById('arContainer');
-    arContainer.style.display = 'block';
-    
-    const sceneEl = document.createElement('a-scene');
-    sceneEl.setAttribute('arjs', 'sourceType: webcam; detectionMode: mono_and_matrix; matrixCodeType: 3x3;');
-    sceneEl.setAttribute('renderer', 'antialias: true; alpha: true');
-    sceneEl.setAttribute('cursor', 'rayOrigin: mouse');
-    
-    const markerEl = document.createElement('a-marker');
-    markerEl.setAttribute('preset', 'hiro');
-    
-    sceneEl.appendChild(markerEl);
-    arContainer.appendChild(sceneEl);
-
-    // Manejar errores
-    sceneEl.addEventListener('arjs-video-loaded', function() {
-        document.getElementById('info').style.display = 'block';
-    });
-    sceneEl.addEventListener('error', function() {
-        document.getElementById('errorMessage').style.display = 'block';
-    });
-}
-
-        function onSceneLoaded() {
-            console.log('Escena AR cargada correctamente');
+        
+        // Variables del juego
+        let currentPlayer = 'X';
+        let gameOver = false;
+        const gameBoard = [
+            ['', '', ''],
+            ['', '', ''],
+            ['', '', '']
+        ];
+        
+        function placePiece(row, col, player) {
+            gameBoard[row][col] = player;
+            const cellId = `cell-${row}-${col}`;
+            const cell = document.getElementById(cellId);
             
-            // Obtener la escena Three.js de A-Frame
-            scene = document.querySelector('a-scene').object3D;
-            
-            // Obtener el marcador
-            marker = document.querySelector('a-marker').object3D;
-            
-            // Inicializar raycaster para detectar interacciones
-            raycaster = new THREE.Raycaster();
-            mouse = new THREE.Vector2();
-            
-            // Crear el tablero de juego
-            createGameBoard();
-            
-            // Agregar event listener para los clics
-            document.addEventListener('click', onDocumentClick);
-            
-            // Botón de reinicio
-            document.getElementById('resetButton').addEventListener('click', resetGame);
-            
-            // Comprobar si el marcador es visible cada segundo
-            setInterval(function() {
-                if (marker && typeof marker.visible !== 'undefined') {
-                    if (marker.visible) {
-                        document.getElementById('info').textContent = "¡Marcador detectado! Haz clic para jugar.";
-                    } else {
-                        document.getElementById('info').textContent = "Apunta la cámara hacia un marcador Hiro para comenzar a jugar";
-                    }
-                }
-            }, 1000);
-        }
-
-        // Crear el tablero de juego
-        function createGameBoard() {
-            // Crear un grupo para contener el tablero
-            const boardGroup = new THREE.Group();
-            
-            // Crear el fondo del tablero
-            const boardGeometry = new THREE.BoxGeometry(3, 0.1, 3);
-            const boardMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
-            const board = new THREE.Mesh(boardGeometry, boardMaterial);
-            boardGroup.add(board);
-            
-            // Crear las líneas del tablero
-            const lineMaterial = new THREE.MeshBasicMaterial({ color: 0xFFFFFF });
-            
-            // Líneas horizontales
-            const hLine1Geometry = new THREE.BoxGeometry(3, 0.1, 0.1);
-            const hLine1 = new THREE.Mesh(hLine1Geometry, lineMaterial);
-            hLine1.position.set(0, 0.1, -1);
-            boardGroup.add(hLine1);
-            
-            const hLine2Geometry = new THREE.BoxGeometry(3, 0.1, 0.1);
-            const hLine2 = new THREE.Mesh(hLine2Geometry, lineMaterial);
-            hLine2.position.set(0, 0.1, 1);
-            boardGroup.add(hLine2);
-            
-            // Líneas verticales
-            const vLine1Geometry = new THREE.BoxGeometry(0.1, 0.1, 3);
-            const vLine1 = new THREE.Mesh(vLine1Geometry, lineMaterial);
-            vLine1.position.set(-1, 0.1, 0);
-            boardGroup.add(vLine1);
-            
-            const vLine2Geometry = new THREE.BoxGeometry(0.1, 0.1, 3);
-            const vLine2 = new THREE.Mesh(vLine2Geometry, lineMaterial);
-            vLine2.position.set(1, 0.1, 0);
-            boardGroup.add(vLine2);
-            
-            // Crear áreas clickeables para cada celda
-            for (let i = 0; i < 9; i++) {
-                const cellGeometry = new THREE.BoxGeometry(0.9, 0.05, 0.9);
-                const cellMaterial = new THREE.MeshBasicMaterial({ 
-                    color: 0x666666, 
-                    transparent: true, 
-                    opacity: 0.0 
-                });
-                const cell = new THREE.Mesh(cellGeometry, cellMaterial);
+            if (player === 'X') {
+                // Crear X
+                const piece = document.createElement('a-entity');
+                piece.setAttribute('geometry', 'primitive: box; width: 0.1; height: 0.1; depth: 0.8');
+                piece.setAttribute('material', 'color: red');
+                piece.setAttribute('position', '0 0.2 0');
+                piece.setAttribute('rotation', '0 0 45');
+                cell.appendChild(piece);
                 
-                // Calcular posición
-                const row = Math.floor(i / 3);
-                const col = i % 3;
-                cell.position.set((col - 1) * 1, 0.15, (row - 1) * 1);
-                
-                // Almacenar el índice de la celda para identificación
-                cell.userData.index = i;
-                
-                boardGroup.add(cell);
-                cells3D.push(cell);
-            }
-            
-            // Ajustar el tablero para que se vea bien en el marcador
-            boardGroup.position.set(0, 0, 0);
-            boardGroup.scale.set(0.5, 0.5, 0.5);
-            
-            // Agregar el tablero al marcador
-            marker.add(boardGroup);
-        }
-
-        // Manejar los clics en el tablero
-        function onDocumentClick(event) {
-            if (!gameActive || !marker || !marker.visible) return;
-            
-            // Calcular las coordenadas del mouse normalizado
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-            
-            // Comprobar si el raycaster está definido
-            if (!raycaster) return;
-            
-            // Actualizar el raycaster
-            const camera = document.querySelector('[camera]');
-            if (!camera || !camera.object3D) return;
-            
-            raycaster.setFromCamera(mouse, camera.object3D);
-            
-            // Verificar si el rayo intersecta con alguna celda
-            const intersects = raycaster.intersectObjects(cells3D);
-            
-            if (intersects.length > 0) {
-                const cellIndex = intersects[0].object.userData.index;
-                
-                // Verificar si la celda está vacía
-                if (gameBoard[cellIndex] === '') {
-                    // Marcar la celda
-                    placeMarker(cellIndex);
-                    
-                    // Verificar si hay un ganador
-                    if (checkWinner()) {
-                        document.getElementById('turnoInfo').textContent = `¡Jugador ${currentPlayer} ha ganado!`;
-                        gameActive = false;
-                    } else if (gameBoard.every(cell => cell !== '')) {
-                        // Empate
-                        document.getElementById('turnoInfo').textContent = '¡Empate!';
-                        gameActive = false;
-                    } else {
-                        // Cambiar de jugador
-                        currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-                        document.getElementById('turnoInfo').textContent = `Turno: Jugador ${currentPlayer}`;
-                    }
-                }
-            }
-        }
-
-        // Colocar una X o O en la celda
-        function placeMarker(index) {
-            // Actualizar el estado del tablero
-            gameBoard[index] = currentPlayer;
-            
-            // Crear el marcador 3D (X u O)
-            const markerGroup = new THREE.Group();
-            
-            if (currentPlayer === 'X') {
-                // Crear una X
-                const xMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
-                
-                const line1Geometry = new THREE.BoxGeometry(0.6, 0.1, 0.1);
-                const line1 = new THREE.Mesh(line1Geometry, xMaterial);
-                line1.rotation.z = Math.PI / 4;
-                markerGroup.add(line1);
-                
-                const line2Geometry = new THREE.BoxGeometry(0.6, 0.1, 0.1);
-                const line2 = new THREE.Mesh(line2Geometry, xMaterial);
-                line2.rotation.z = -Math.PI / 4;
-                markerGroup.add(line2);
+                const piece2 = document.createElement('a-entity');
+                piece2.setAttribute('geometry', 'primitive: box; width: 0.1; height: 0.1; depth: 0.8');
+                piece2.setAttribute('material', 'color: red');
+                piece2.setAttribute('position', '0 0.2 0');
+                piece2.setAttribute('rotation', '0 0 -45');
+                cell.appendChild(piece2);
             } else {
-                // Crear una O
-                const oGeometry = new THREE.TorusGeometry(0.25, 0.08, 16, 32);
-                const oMaterial = new THREE.MeshBasicMaterial({ color: 0x0000FF });
-                const o = new THREE.Mesh(oGeometry, oMaterial);
-                markerGroup.add(o);
+                // Crear O
+                const piece = document.createElement('a-entity');
+                piece.setAttribute('geometry', 'primitive: torus; radius: 0.3; radiusTubular: 0.05');
+                piece.setAttribute('material', 'color: blue');
+                piece.setAttribute('position', '0 0.2 0');
+                piece.setAttribute('rotation', '-90 0 0');
+                cell.appendChild(piece);
             }
             
-            // Calcular posición
-            const row = Math.floor(index / 3);
-            const col = index % 3;
-            markerGroup.position.set((col - 1) * 1, 0.3, (row - 1) * 1);
-            
-            // Ajustar escala y posición
-            markerGroup.scale.set(0.5, 0.5, 0.5);
-            
-            // Agregar el marcador al tablero
-            if (cells3D[index] && cells3D[index].parent) {
-                cells3D[index].parent.add(markerGroup);
-            }
+            // Marcar la celda como ocupada
+            cell.setAttribute('data-value', player);
         }
-
-        // Verificar si hay un ganador
+        
+        function togglePlayer() {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            document.getElementById('gameInfo').textContent = `Jugador actual: ${currentPlayer}`;
+        }
+        
         function checkWinner() {
-            const winPatterns = [
-                [0, 1, 2], [3, 4, 5], [6, 7, 8], // Filas
-                [0, 3, 6], [1, 4, 7], [2, 5, 8], // Columnas
-                [0, 4, 8], [2, 4, 6]             // Diagonales
-            ];
+            // Revisar filas
+            for (let row = 0; row < 3; row++) {
+                if (gameBoard[row][0] && gameBoard[row][0] === gameBoard[row][1] && gameBoard[row][0] === gameBoard[row][2]) {
+                    endGame(`¡${gameBoard[row][0]} ha ganado!`);
+                    return;
+                }
+            }
             
-            return winPatterns.some(pattern => {
-                return pattern.every(index => {
-                    return gameBoard[index] === currentPlayer;
-                });
-            });
-        }
-
-        // Reiniciar el juego
-        function resetGame() {
-            // Limpiar el tablero
-            gameBoard = ['', '', '', '', '', '', '', '', ''];
-            gameActive = true;
-            currentPlayer = 'X';
+            // Revisar columnas
+            for (let col = 0; col < 3; col++) {
+                if (gameBoard[0][col] && gameBoard[0][col] === gameBoard[1][col] && gameBoard[0][col] === gameBoard[2][col]) {
+                    endGame(`¡${gameBoard[0][col]} ha ganado!`);
+                    return;
+                }
+            }
             
-            // Actualizar el mensaje de turno
-            document.getElementById('turnoInfo').textContent = 'Turno: Jugador X';
+            // Revisar diagonales
+            if (gameBoard[0][0] && gameBoard[0][0] === gameBoard[1][1] && gameBoard[0][0] === gameBoard[2][2]) {
+                endGame(`¡${gameBoard[0][0]} ha ganado!`);
+                return;
+            }
             
-            // Eliminar los marcadores 3D
-            cells3D.forEach(cell => {
-                if (cell && cell.parent) {
-                    // Eliminar todos los hijos de la celda (las X y O)
-                    const parent = cell.parent;
-                    for (let i = parent.children.length - 1; i >= 0; i--) {
-                        const child = parent.children[i];
-                        if (child !== cell && child.type === 'Group') {
-                            parent.remove(child);
-                        }
+            if (gameBoard[0][2] && gameBoard[0][2] === gameBoard[1][1] && gameBoard[0][2] === gameBoard[2][0]) {
+                endGame(`¡${gameBoard[0][2]} ha ganado!`);
+                return;
+            }
+            
+            // Revisar empate
+            let isDraw = true;
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 3; col++) {
+                    if (!gameBoard[row][col]) {
+                        isDraw = false;
+                        break;
                     }
                 }
-            });
+                if (!isDraw) break;
+            }
+            
+            if (isDraw) {
+                endGame("¡Empate!");
+            }
+        }
+        
+        function endGame(message) {
+            gameOver = true;
+            document.getElementById('gameInfo').textContent = message;
+            document.getElementById('statusText').setAttribute('text', `value: ${message}; color: red; align: center; width: 5`);
+        }
+        
+        function resetGame() {
+            // Reiniciar el tablero
+            for (let row = 0; row < 3; row++) {
+                for (let col = 0; col < 3; col++) {
+                    gameBoard[row][col] = '';
+                    const cellId = `cell-${row}-${col}`;
+                    const cell = document.getElementById(cellId);
+                    
+                    // Eliminar piezas existentes
+                    while (cell.firstChild) {
+                        cell.removeChild(cell.firstChild);
+                    }
+                    
+                    // Reiniciar el atributo data-value
+                    cell.removeAttribute('data-value');
+                }
+            }
+            
+            // Reiniciar el estado del juego
+            currentPlayer = 'X';
+            gameOver = false;
+            document.getElementById('gameInfo').textContent = `Jugador actual: ${currentPlayer}`;
+            document.getElementById('statusText').setAttribute('text', 'value: Tic Tac Toe AR; color: red; align: center; width: 5');
         }
     </script>
 </body>
